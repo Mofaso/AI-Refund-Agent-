@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  # Local Firestore Emulator (Zero cloud setup needed!)
+  firestore-emulator:
+    image: google/cloud-sdk:emulators
+    container_name: worknoon-firestore-emulator
+    ports:
+      - "8080:8080"
+    environment:
+      - GOOGLE_CLOUD_PROJECT=worknoon-refund-agent
+    command: gcloud beta emulators firestore start --host-port=0.0.0.0:8080
+    restart: always
+
+  # FastAPI Backend Service (Agent & API logic)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: worknoon-refund-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - FIRESTORE_EMULATOR_HOST=firestore-emulator:8080
+      - GOOGLE_CLOUD_PROJECT=worknoon-refund-agent
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+    depends_on:
+      - firestore-emulator
+    restart: always
+
+  # React Frontend Service (Customer portal & Admin dashboard)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: worknoon-refund-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - backend
+    restart: always
